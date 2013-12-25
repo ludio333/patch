@@ -1,0 +1,13 @@
+--- krb5/src/lib/krb5/os/hst_realm.c
++++ krb5/src/lib/krb5/os/hst_realm.c
+@@ -144,9 +144,7 @@
+     printf("get_host_realm(host:%s) called\n",host);
+ #endif
+ 
+-    retval = krb5int_clean_hostname(context, host, local_host, sizeof local_host);
+-    if (retval)
+-        return retval;
++krb5int_clean_hostname(context, host, local_host, sizeof local_host);
+ 
+     /*
+       Search for the best match for the host or domain.

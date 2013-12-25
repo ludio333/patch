@@ -1,0 +1,15 @@
+--- src/lib/krb5/os/hst_realm.c.bak     2013-04-06 14:10:14.000000000 +0800
++++ src/lib/krb5/os/hst_realm.c 2013-04-06 14:09:23.000000000 +0800
+@@ -144,9 +144,7 @@
+    printf("get_host_realm(host:%s) called\n",host);
+#endif
+
+-    retval = krb5int_clean_hostname(context, host, local_host, sizeof local_host);
+-    if (retval)
+-???? return retval;
++    krb5int_clean_hostname(context, host, local_host, sizeof local_host);
+
+    /*
+      Search for the best match for the host or domain.
+---
+
