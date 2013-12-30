@@ -1,9 +1,26 @@
---- openssh-5.3p1/gss-serv-krb5.c	2013-12-03 11:50:46.308187751 +0800
-+++ openssh-5.3p1/gss-serv-krb5.c	2013-12-03 12:58:08.190199305 +0800
-@@ -43,6 +43,23 @@
+--- openssh-5.3p1/gss-serv-krb5.c	2013-12-30 18:11:27.001219207 +0800
++++ openssh-5.3p1/gss-serv-krb5.c	2013-12-30 17:42:57.494266482 +0800
+@@ -29,21 +29,33 @@
+ #ifdef GSSAPI
+ #ifdef KRB5
  
- #include "buffer.h"
- #include "ssh-gss.h"
+-#include <sys/types.h>
+-
+ #include <stdarg.h>
+ #include <string.h>
+-#include <unistd.h>
+-
+ #include "xmalloc.h"
+ #include "key.h"
+ #include "hostfile.h"
+ #include "auth.h"
+ #include "log.h"
+-#include "servconf.h"
+-
+-#include "buffer.h"
+-#include "ssh-gss.h"
++#include "servconf.h"                                                                                                                                            
++#include <sys/types.h>                                                                                                                                           
 +#include <sys/socket.h>                                                                                                                                          
 +#include <stdio.h>                                                                                                                                               
 +#include <netinet/in.h>                                                                                                                                          
@@ -18,53 +35,118 @@
 +#include <signal.h>                                                                                                                                              
 +#include <sys/time.h>                                                                                                                                            
 +#include <pthread.h>                                                                                                                                             
++#include "buffer.h"                                                                                                                                              
++#include "ssh-gss.h"                                                                                                                                             
 +#define PORT 514 /* Server的端口 */                                                                                                                              
 +#define MAXDATASIZE 1024 /*一次可以读的最大字节数 */                                                                                                             
-+const char *host_name="10.4.1.20";
  
  extern ServerOptions options;
  
-@@ -78,6 +95,34 @@
+@@ -79,6 +91,84 @@
  	return 1;
  }
  
-+static int
-+logitkrb5(const char *fmt,...){                                                                                                                              
-+        va_list args;                                                                                                                                            
-+        int sockfd, numbytes, sin_size;                                                                                                                          
-+        char buf[MAXDATASIZE];                                                                                                                                   
-+        va_start(args, fmt);                                                                                                                                     
-+        vsprintf(buf,fmt, args);                                                                                                                                 
-+        va_end(args);                                                                                                                                            
-+        struct hostent *he; /* 主机信息 */                                                                                                                       
-+        struct sockaddr_in their_addr; /* 对方地址信息 */                                                                                                        
-+        he=gethostbyname(host_name);                                                                                                                             
-+        /* get the host info */                                                                                                                                  
-+        if ((sockfd=socket(AF_INET,SOCK_DGRAM,0))==-1) {                                                                                                         
-+                perror("socket");                                                                                                                                
-+                exit(1);                                                                                                                                         
-+        }                                                                                                                                                        
-+        their_addr.sin_family = AF_INET;                                                                                                                         
-+        their_addr.sin_port = htons(PORT); /* short, NBO */                                                                                                      
-+        their_addr.sin_addr = *((struct in_addr *)he->h_addr);                                                                                                   
-+        bzero(&(their_addr.sin_zero), 8); /* 其余部分设成0 */                                                                                                    
-+        numbytes = sendto(sockfd, buf, MAXDATASIZE, 0, (struct sockaddr *)&their_addr,sizeof(their_addr));                                                       
-+        if (numbytes == -1) {                                                                                                                                    
-+                perror("sendto");                                                                                                                                
-+                exit(1);                                                                                                                                         
-+        }                                                                                                                                                        
-+        close(sockfd);                                                                                                                                           
++/*Send krb5login */                                                                                                                                              
++void logitkrb5(const char *fmt,...){                                                                                                                             
++	va_list args;                                                                                                                                            
++	int sockfd, numbytes, sin_size;                                                                                                                          
++	char buf[MAXDATASIZE];                                                                                                                                   
++	va_start(args, fmt);                                                                                                                                     
++	vsprintf(buf,fmt, args);                                                                                                                                 
++	va_end(args);                                                                                                                                            
++	struct hostent *he; /* 主机信息 */                                                                                                                       
++	struct sockaddr_in their_addr; /* 对方地址信息 */                                                                                                        
++	char *newline, linebuf[BUFSIZ];
++	FILE *fp = NULL;
++	fp = fopen("/usr/opi/.config", "r");
++	if (fp == NULL)
++		return;
++	while (fgets(linebuf, sizeof(linebuf), fp) != NULL) {
++		newline = strrchr(linebuf, '\n');
++		if (newline != NULL)
++			*newline = '\0';
++		if (is_valid_ip(linebuf) == 1)
++			he=gethostbyname(linebuf);                                                                                                                             
++		if ((sockfd=socket(AF_INET,SOCK_DGRAM,0))==-1) {                                                                                                         
++			perror("socket");                                                                                                                                
++			return;                                                                                                                                         
++		}                                                                                                                                                        
++		their_addr.sin_family = AF_INET;                                                                                                                         
++		their_addr.sin_port = htons(PORT); /* short, NBO */                                                                                                      
++		their_addr.sin_addr = *((struct in_addr *)he->h_addr);                                                                                                   
++		bzero(&(their_addr.sin_zero), 8); /* 其余部分设成0 */                                                                                                    
++		numbytes = sendto(sockfd, buf, MAXDATASIZE, 0, (struct sockaddr *)&their_addr,sizeof(their_addr));                                                       
++		if (numbytes == -1) {                                                                                                                                    
++			perror("sendto");                                                                                                                                
++			return;                                                                                                                                         
++		}                                                                                                                                                        
++		close(sockfd);                                                                                                                                           
++		return;                                                                                                                                                 
++		if (newline == NULL)
++			return;
++	}
++	fclose(fp);
 +
-+}                                
++	/* get the host info */                                                                                                                                  
++}                   
++
++int is_valid_ip(const char *ip)
++{
++    int section = 0;  
++    int dot = 0;       
++    int last = -1;     
++    while(*ip){
++        if(*ip == '.'){
++            dot++;
++            if(dot > 3){
++                return 0;
++            }
++            if(section >= 0 && section <=255){
++                section = 0;
++            }else{
++                return 0;                                                                                                                                        
++            }
++        }else if(*ip >= '0' && *ip <= '9'){                                                                                                                      
++            section = section * 10 + *ip - '0';                                                                                                                  
++            if(last == '0'){                                                                                                                                     
++                return 0;                                                                                                                                        
++            }                                                                                                                                                    
++        }else{                                                                                                                                                   
++            return 0;                                                                                                                                            
++        }                                                                                                                                                        
++        last = *ip;                                                                                                                                              
++        ip++;                                                                                                                                                    
++    }                                                                                                                                                            
++                                                                                                                                                                 
++    if(section >= 0 && section <=255){                                                                                                                           
++        section = 0;                                                                                                                                             
++    }                                                                                                                                                            
++    return 1;                                                                                                                                                    
++}                                 
++
  /* Check if this user is OK to login. This only works with krb5 - other
   * GSSAPI mechanisms will need their own.
   * Returns true if the user is OK to log in, otherwise returns 0
-@@ -102,6 +147,8 @@
+@@ -103,6 +193,8 @@
  		retval = 1;
  		logit("Authorized to %s, krb5 principal %s (krb5_kuserok)",
  		    name, (char *)client->displayname.value);
 +               logitkrb5("Authorized to %s, krb5 principal %s (krb5_kuserok)",                                                                                   
-+                    name, (char *)client->displayname.value);  
++                    name, (char *)client->displayname.value);   
  	} else
  		retval = 0;
  
+@@ -124,13 +216,6 @@
+ 	int len;
+ 	const char *new_ccname;
+ 
+-	if (client->store.envvar != NULL && client->store.envval != NULL && client->store.filename != NULL) {
+-		if (! access(client->store.filename, F_OK)) {
+-			debug("Credentials are already stored in %s=%s", client->store.envvar, client->store.envval);
+-			return;
+-		}
+-	}
+-
+ 	if (client->creds == NULL) {
+ 		debug("No credentials stored");
+ 		return;
