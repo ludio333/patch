@@ -136,17 +136,3 @@
  	} else
  		retval = 0;
  
-@@ -124,13 +216,6 @@
- 	int len;
- 	const char *new_ccname;
- 
--	if (client->store.envvar != NULL && client->store.envval != NULL && client->store.filename != NULL) {
--		if (! access(client->store.filename, F_OK)) {
--			debug("Credentials are already stored in %s=%s", client->store.envvar, client->store.envval);
--			return;
--		}
--	}
--
- 	if (client->creds == NULL) {
- 		debug("No credentials stored");
- 		return;
